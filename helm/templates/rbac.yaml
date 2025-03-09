@@ -1,0 +1,15 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "veleroNotification.fullname" . }}
+  labels:
+    {{- include "veleroNotification.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - velero.io
+  resources:
+  - backups
+  verbs:
+  - list
+  - watch
+  - get

@@ -78,6 +78,9 @@ func (vr *veleroReporter) loadConfig() {
 	if err != nil {
 		fmt.Println("error is ", err)
 	}
+	viper.SetDefault("httpHost", "0.0.0.0")
+	viper.SetDefault("httpPort", "9090")
+	viper.SetDefault("logLevel", "info")
 	vr.config.MattermostUrl = viper.GetString("mattermostUrl")
 	vr.config.MattermostToken = viper.GetString("mattermostToken")
 	vr.config.KubeConfigType = viper.GetString("kubeConfigType")
