@@ -20,8 +20,8 @@ func NewKubernetesClient(l *zap.SugaredLogger, kubeConfigPath string, kr Kuberne
 			l.Fatalf("Error building kubeconfig: %v", err)
 		}
 	}
-	config.QPS = 100000
-	config.Burst = 200000
+	config.QPS = 100
+	config.Burst = 200
 
 	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(config.QPS, config.Burst)
 	clientset, err := kubernetes.NewForConfig(config)
@@ -48,7 +48,7 @@ func NewKubernetesClient(l *zap.SugaredLogger, kubeConfigPath string, kr Kuberne
 func (kc *KubernetesClient) HealthCheck() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	defer cancel()
-
+	kc.logger.Info("About to call /healthz kubernets api")
 	result := kc.clientset.RESTClient().Get().AbsPath("/healthz").Do(ctx)
 	if result.Error() != nil {
 		kc.logger.Error("Error checking health:", "error", result.Error())
@@ -57,6 +57,7 @@ func (kc *KubernetesClient) HealthCheck() error {
 
 	var statusCode int
 	result.StatusCode(&statusCode)
+	kc.logger.Infow("Health check response is, ", "statusCode", statusCode)
 	if statusCode != 200 {
 		kc.logger.Warnf("Server not ready, status code: %d", statusCode)
 		return fmt.Errorf("server not ready, status code: %d", statusCode)
