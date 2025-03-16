@@ -12,6 +12,10 @@ var KUBERNETES_CREATE_CONFIGMAP_ERROR = errors.New("Cannot create configmap")
 var VELERO_RETIERIVE_STATUS_ERROR = errors.New("Cannot get Velero status")
 var VELERO_STATUS_MISSING = errors.New("Cannot get Velero status")
 var VELERO_CANNOT_MARSHALL_STATUS = errors.New("Cannot convert Velero status into struct")
+var VELERO_ERROR_RETIEVIE_CONFIGMAP = errors.New("Cannot retierive configmap")
+var VELERO_RESOURCEVERSION_IS_NULL = errors.New("Resource version in configmap is null")
+var VELERO_CANNOT_CONVERT_RESOURCE_VERSION_TO_INT = errors.New("Cannot convert resource version to int")
+var VELERO_UPDATE_CONFIGMAP_ERROR = errors.New("Cannot update configmap")
 
 // Mattermost errors
 var MATTERMOST_CANNOT_CONVERT_BODY_TO_JSON = errors.New("Cannot convert Velero status into JSON")
