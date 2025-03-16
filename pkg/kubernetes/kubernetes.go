@@ -4,6 +4,9 @@ import (
 	"context"
 	vr_errors "github.com/root-ali/velero-reporter/pkg/errors"
 	"go.uber.org/zap"
+	config_v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -41,6 +44,11 @@ func NewKubernetesClient(l *zap.SugaredLogger, kubeConfigPath string, kr Kuberne
 		kr:            kr,
 		logger:        l,
 	}
+	err = kc.initiateConfigMap()
+	if err != nil {
+		l.Errorw("Error initiating configmap", "error", err)
+		panic(err)
+	}
 	kc.VeleroBackupWatch()
 	return kc
 }
@@ -76,5 +84,24 @@ func (kc *KubernetesClient) HealthCheck() error {
 	return nil
 }
 
+func (kc *KubernetesClient) initiateConfigMap() error {
+	configMap := &config_v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "velero-notification-backup-last-resource-version",
+		},
+		Data: map[string]string{
+			"resourceVersion": "000000",
+		},
+	}
+	create, err := kc.clientset.CoreV1().ConfigMaps("velero").Create(context.TODO(), configMap, metav1.CreateOptions{})
+	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			kc.logger.Info("Configmap already exists")
+			return nil
+		}
+		kc.logger.Errorw("Error creating configmap", "error", err)
+		return vr_errors.KUBERNETES_CREATE_CONFIGMAP_ERROR
+	}
+	kc.logger.Infow("Initiate configmap for velero", "configmap.Name", create.Name, "configmap.Namespace", create.Namespace)
 	return nil
 }
