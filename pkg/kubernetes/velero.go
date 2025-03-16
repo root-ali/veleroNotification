@@ -3,7 +3,8 @@ package kubernetes
 import (
 	"context"
 	"encoding/json"
-	"errors"
+
+	vr_errors "github.com/root-ali/velero-reporter/pkg/errors"
 	v1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -42,6 +43,7 @@ func (kc *KubernetesClient) VeleroBackupWatch() {
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			u := newObj.(*unstructured.Unstructured)
 			kc.logger.Info("a backup is updated")
+
 			status, err := kc.getBackupStatus(u)
 			if err != nil {
 				kc.logger.Error()
@@ -70,18 +72,21 @@ func (kc *KubernetesClient) getBackupStatus(u *unstructured.Unstructured) (v1.Ba
 
 	statusRaw, ok, err := unstructured.NestedFieldNoCopy(u.Object, "status")
 	if err != nil {
-		return status, err
+		kc.logger.Error("error retrieving status from velero", "error", err)
+		return status, vr_errors.VELERO_RETIERIVE_STATUS_ERROR
 	}
 	if !ok {
-		kc.logger.Error("status is missing")
-		return status, errors.New("Status is Missing")
+		kc.logger.Errorw("status is missing", "error", vr_errors.VELERO_STATUS_MISSING)
+		return status, vr_errors.VELERO_STATUS_MISSING
 	}
 	statusJSON, err := json.Marshal(statusRaw)
 	if err != nil {
-		return status, err
+		kc.logger.Errorw("error marshalling status", "error", err)
+		return status, vr_errors.VELERO_CANNOT_MARSHALL_STATUS
 	}
 	if err := json.Unmarshal(statusJSON, &status); err != nil {
-		return status, err
+		kc.logger.Errorw("Cannot unmarshall status", "error", err)
+		return status, vr_errors.VELERO_CANNOT_MARSHALL_STATUS
 	}
 	return status, nil
 }
@@ -90,7 +95,7 @@ func (kc *KubernetesClient) checkBackupStatus(status v1.BackupStatus, namespace 
 	if status.Phase == "InProgress" {
 		kc.logger.Infow("Backup is in InProgress mode nothing to do")
 	} else if status.Phase == "Failed" {
-		kc.logger.Errorw("Backup Failed ", "status", status.Phase, "Failed Reason ", status.FailureReason)
+		kc.logger.Infow("Backup Failed ", "status", status.Phase, "Failed Reason ", status.FailureReason)
 		messsage := "Backup Failed: " + name + " in namespace " + namespace + "\n for reason: " + status.FailureReason +
 			"\n Please run `velero backup describe" + name + "` for more information"
 		err := kc.kr.SendMessage(messsage, "Failed")

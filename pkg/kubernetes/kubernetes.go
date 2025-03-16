@@ -2,7 +2,7 @@ package kubernetes
 
 import (
 	"context"
-	"fmt"
+	vr_errors "github.com/root-ali/velero-reporter/pkg/errors"
 	"go.uber.org/zap"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -51,27 +51,30 @@ func (kc *KubernetesClient) HealthCheck() error {
 	kc.logger.Info("About to call /healthz kubernets api")
 	result := kc.clientset.RESTClient().Get().AbsPath("/healthz").Do(ctx)
 	if result.Error() != nil {
-		kc.logger.Error("Error checking health:", "error", result.Error())
-		return fmt.Errorf("error checking health: %v", result.Error())
+		kc.logger.Error("Error checking health:", "error", vr_errors.KUBERNETES_HEALTH_ERROR)
+		return vr_errors.KUBERNETES_HEALTH_ERROR
 	}
 
 	var statusCode int
 	result.StatusCode(&statusCode)
 	kc.logger.Infow("Health check response is, ", "statusCode", statusCode)
 	if statusCode != 200 {
-		kc.logger.Warnf("Server not ready, status code: %d", statusCode)
-		return fmt.Errorf("server not ready, status code: %d", statusCode)
+		kc.logger.Errorw("Server not ready, status code: ", "statusCode", statusCode, "error", result.Error())
+		return vr_errors.KUBERNETES_API_NOT_READY
 	}
 
 	body, err := result.Raw()
 	if err != nil {
-		kc.logger.Errorf("Error getting response body: %v", err)
-		return fmt.Errorf("error getting response body: %v", err)
+		kc.logger.Errorw("Error getting response body: %v", "error", err)
+		return vr_errors.KUBERNETES_API_ERROR
 	}
 	if string(body) != "ok" {
-		kc.logger.Warnf("Unexpected response body: %s", string(body))
-		return fmt.Errorf("unexpected response body: %s", string(body))
+		kc.logger.Errorw("Unexpected response body:", "error", err)
+		return vr_errors.KUBERNETES_API_ERROR
 	}
+
+	return nil
+}
 
 	return nil
 }
