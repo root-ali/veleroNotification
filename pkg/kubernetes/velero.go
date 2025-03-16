@@ -46,7 +46,13 @@ func (kc *KubernetesClient) VeleroBackupWatch() {
 			if err != nil {
 				kc.logger.Error()
 			}
-			kc.checkBackupStatus(status, u.GetNamespace(), u.GetName())
+			err = kc.checkBackupStatus(status, u.GetNamespace(), u.GetName())
+			if err != nil {
+				kc.logger.Error("error checking backup status", err)
+			} else {
+				u.SetResourceVersion("123123")
+				kc.logger.Info("backup is updated")
+			}
 
 		},
 	})
@@ -80,7 +86,7 @@ func (kc *KubernetesClient) getBackupStatus(u *unstructured.Unstructured) (v1.Ba
 	return status, nil
 }
 
-func (kc *KubernetesClient) checkBackupStatus(status v1.BackupStatus, namespace string, name string) {
+func (kc *KubernetesClient) checkBackupStatus(status v1.BackupStatus, namespace string, name string) error {
 	if status.Phase == "InProgress" {
 		kc.logger.Infow("Backup is in InProgress mode nothing to do")
 	} else if status.Phase == "Failed" {
@@ -90,15 +96,18 @@ func (kc *KubernetesClient) checkBackupStatus(status v1.BackupStatus, namespace 
 		err := kc.kr.SendMessage(messsage, "Failed")
 		if err != nil {
 			kc.logger.Errorw("Cannot send message ", "error", err)
+			return err
 		}
 	} else if status.Phase == "Completed" {
 		kc.logger.Infow("Backup Completed", "status", status.Phase, "Items", status.Progress.ItemsBackedUp, "Time", status.CompletionTimestamp)
-		msg := "Backup Completed " + name + "on namespace " + namespace + "\n Please run `velero backup describe" + name + "` for more information"
+		msg := "Backup Completed " + name + " on namespace " + namespace + "\n Please run `velero backup describe " + name + "` for more information"
 		err := kc.kr.SendMessage(msg, "Success")
 		if err != nil {
 			kc.logger.Errorw("Cannot send message ", "error", err)
+			return err
 		}
 	} else {
 		kc.logger.Infow("Backup is in different mode", "status", status.Phase)
 	}
+	return nil
 }
