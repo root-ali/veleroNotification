@@ -159,6 +159,7 @@ func (kc *KubernetesClient) getBackupStatus(u *unstructured.Unstructured) (v1.Ba
 func (kc *KubernetesClient) checkBackupStatus(status v1.BackupStatus, namespace string, name string) error {
 	if status.Phase == "InProgress" {
 		kc.logger.Infow("Backup is in InProgress mode nothing to do")
+		return vr_errors.VELERO_BACKUP_NOT_COMPLETED
 	} else if status.Phase == "Failed" {
 		kc.logger.Infow("Backup Failed ", "status", status.Phase,
 			"Failed Reason ", status.FailureReason)
@@ -170,6 +171,7 @@ func (kc *KubernetesClient) checkBackupStatus(status v1.BackupStatus, namespace 
 			kc.logger.Errorw("Cannot send message ", "error", err)
 			return err
 		}
+		return vr_errors.VELERO_BACKUP_NOT_COMPLETED
 	} else if status.Phase == "Completed" {
 		kc.logger.Infow("Backup Completed", "status", status.Phase,
 			"Items", status.Progress.ItemsBackedUp, "Time", status.CompletionTimestamp)
@@ -180,8 +182,9 @@ func (kc *KubernetesClient) checkBackupStatus(status v1.BackupStatus, namespace 
 			kc.logger.Errorw("Cannot send message ", "error", err)
 			return err
 		}
+		return nil
 	} else {
 		kc.logger.Infow("Backup is in different mode", "status", status.Phase)
+		return vr_errors.VELERO_BACKUP_NOT_COMPLETED
 	}
-	return nil
 }
